@@ -741,6 +741,7 @@ class JanelaJarvis(QMainWindow):
             "sem_release": f"JARVIS v{atual}  /  AGUARDANDO PRIMEIRA RELEASE",
             "atualizado": f"JARVIS v{atual}  /  ATUALIZADO",
             "pronta": f"VERSÃO {versao} PRONTA  /  APLICAR AO FECHAR",
+            "melhorias_pausadas": f"VERSÃO {versao} DISPONÍVEL  /  MELHORIAS PAUSADAS",
             "release_incompleta": f"VERSÃO {versao}  /  PACOTE DE ATUALIZAÇÃO AUSENTE",
             "erro": "ATUALIZADOR  /  NOVA TENTATIVA PROGRAMADA",
         }

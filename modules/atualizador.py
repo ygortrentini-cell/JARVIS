@@ -68,6 +68,11 @@ def _versao_maior(a, b):
     return chave_a + (0,) * (tamanho - len(chave_a)) > chave_b + (0,) * (tamanho - len(chave_b))
 
 
+def _modo_melhoria_completa_ativo():
+    configuracao = _configuracao_literal(RAIZ / "config.py")
+    return configuracao.get("MODO_MELHORIA_COMPLETA", True) is True
+
+
 def _baixar(url, limite, binario=False):
     cabecalhos = {
         "User-Agent": "JARVIS-Updater/1.0",
@@ -182,6 +187,15 @@ class Atualizador:
             if not _versao_maior(versao, atual):
                 return {"status": "atualizado", "atual": atual}
             mudancas, aprendizados = _resumir_notas_release(release.get("body"))
+            if not _modo_melhoria_completa_ativo():
+                return {
+                    "status": "melhorias_pausadas",
+                    "atual": atual,
+                    "versao": tag,
+                    "notas": _notas_curta(release.get("body")),
+                    "mudancas": mudancas,
+                    "aprendizados": aprendizados,
+                }
 
             ativos = {item.get("name"): item for item in release.get("assets", [])}
             pacote = ativos.get(NOME_PACOTE)
@@ -444,6 +458,27 @@ def _aplicar_pacote(arquivo_zip, pid, interpretador, entrada, mudancas="", apren
         alterados = []
         criados = []
         try:
+            arquivos_codigo_novos = {
+                nome
+                for nome in nomes
+                if len(PurePosixPath(nome).parts) > 1
+                and PurePosixPath(nome).parts[0] in PASTAS_CODIGO_PERMITIDAS
+                and PurePosixPath(nome).suffix.lower() == ".py"
+            }
+            for pasta in PASTAS_CODIGO_PERMITIDAS:
+                raiz_codigo = RAIZ / pasta
+                if not raiz_codigo.is_dir():
+                    continue
+                for antigo in raiz_codigo.rglob("*.py"):
+                    relativo = antigo.relative_to(RAIZ).as_posix()
+                    if relativo in arquivos_codigo_novos or antigo.is_symlink() or not antigo.is_file():
+                        continue
+                    copia = pasta_backup.joinpath(*PurePosixPath(relativo).parts)
+                    copia.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(antigo, copia)
+                    alterados.append((antigo, copia))
+                    antigo.unlink()
+
             for nome in nomes:
                 caminho = PurePosixPath(nome)
                 origem = pasta_stage.joinpath(*caminho.parts)

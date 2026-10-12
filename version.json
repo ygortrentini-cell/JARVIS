@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
-  "mudancas": "Verifica atualizações ao iniciar, a cada hora ou por pedido; anuncia por voz o resumo após instalar e permite consultar o que mudou.",
-  "aprendizados": "Guarda localmente até 60 descobertas recentes dos feeds de pesquisa e resume as duas últimas quando você pergunta o que aprendeu."
+  "version": "0.4.0",
+  "mudancas": "Adiciona o Modo de Melhoria Completa, ligado por padrão, que atualiza o código do JARVIS e sua interface pelas Releases oficiais, removendo módulos antigos que deixarem de fazer parte do pacote; preserva dados e configurações locais.",
+  "aprendizados": "O JARVIS passa a apresentar o resumo de novidades e aprendizados documentado em cada Release oficial; o programa não reescreve nem instala código por conta própria."
 }

@@ -14,3 +14,7 @@ PAUSA_FINAL = 1.15
 VELOCIDADE_VOZ = 1.03
 TONALIDADE_VOZ = 0.92
 MAX_HISTORICO = 10
+
+# Baixa Releases oficiais e atualiza o programa, incluindo sua interface.
+# Defina False para pausar as atualizações automáticas.
+MODO_MELHORIA_COMPLETA = True
