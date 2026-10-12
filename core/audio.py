@@ -15,9 +15,9 @@ from modules.util import corrigir_transcricao
 
 
 COMANDO_DUAS_PALMAS = "__JARVIS_DUAS_PALMAS__"
-LIMIAR_PALMA_PICO = float(getattr(configuracao, "LIMIAR_PALMA_PICO", 0.16))
-LIMIAR_PALMA_CREST = float(getattr(configuracao, "LIMIAR_PALMA_CREST", 3.5))
-INTERVALO_PALMAS = float(getattr(configuracao, "INTERVALO_PALMAS", 1.0))
+LIMIAR_PALMA_PICO = float(getattr(configuracao, "LIMIAR_PALMA_PICO", 0.10))
+LIMIAR_PALMA_CREST = float(getattr(configuracao, "LIMIAR_PALMA_CREST", 3.8))
+INTERVALO_PALMAS = float(getattr(configuracao, "INTERVALO_PALMAS", 1.5))
 
 
 class Audio:
@@ -70,7 +70,7 @@ class Audio:
 
         print("\n🎤 Ouvindo...")
         taxa = 16000
-        duracao_bloco = 0.05
+        duracao_bloco = 0.02
         quadros_bloco = int(taxa * duracao_bloco)
         limiar_voz = LIMIAR_VOZ
         pausa_final = PAUSA_FINAL
@@ -83,6 +83,7 @@ class Audio:
         blocos_calibracao = 0
         inicio_gravacao = time.monotonic()
         primeira_palma = None
+        ignorar_voz_ate = 0.0
 
         # Mede o ruído do ambiente e guarda áudio anterior à fala para preservar
         # o começo de palavras, mesmo quando o volume da voz é baixo.
@@ -98,15 +99,15 @@ class Audio:
                 bloco = bloco.reshape(-1).copy()
                 energia = float(np.sqrt(np.mean(bloco * bloco)))
                 pico = float(np.max(np.abs(bloco)))
+                agora = time.monotonic()
 
                 if blocos_calibracao >= 6:
-                    agora = time.monotonic()
                     limiar_pico = max(
                         LIMIAR_PALMA_PICO,
-                        ruido_ambiente * 8,
-                        limiar_voz * 30,
+                        ruido_ambiente * 5,
+                        limiar_voz * 20,
                     )
-                    limiar_energia = max(0.018, ruido_ambiente * 3, limiar_voz * 2)
+                    limiar_energia = max(0.008, ruido_ambiente * 2, limiar_voz * 1.4)
                     crista = pico / max(energia, 1e-6)
                     impulso = (
                         pico >= limiar_pico
@@ -114,14 +115,36 @@ class Audio:
                         and crista >= LIMIAR_PALMA_CREST
                     )
                     if impulso:
-                        if primeira_palma is None or agora - primeira_palma > INTERVALO_PALMAS:
+                        intervalo = (
+                            agora - primeira_palma
+                            if primeira_palma is not None
+                            else None
+                        )
+                        if primeira_palma is None or intervalo > INTERVALO_PALMAS:
                             primeira_palma = agora
-                        elif agora - primeira_palma >= 0.18:
+                        elif intervalo >= 0.10:
                             return COMANDO_DUAS_PALMAS
+
+                        # Não deixe o estalo isolado virar fala para o Whisper.
+                        blocos.clear()
+                        pre_audio.clear()
+                        falando = False
+                        silencio = 0.0
+                        ignorar_voz_ate = agora + 0.10
+                        continue
+
+                    if (
+                        primeira_palma is not None
+                        and agora - primeira_palma > INTERVALO_PALMAS
+                    ):
+                        primeira_palma = None
+
+                if agora < ignorar_voz_ate:
+                    continue
 
                 if not falando:
                     pre_audio.append(bloco)
-                    pre_audio = pre_audio[-6:]
+                    pre_audio = pre_audio[-15:]
 
                     if blocos_calibracao < 6:
                         if energia < limiar_voz:
@@ -157,7 +180,8 @@ class Audio:
 
                 if (
                     not falando
-                    and time.monotonic() - inicio_gravacao >= espera_inicial
+                    and agora - inicio_gravacao >= espera_inicial
+                    and primeira_palma is None
                 ):
                     break
 

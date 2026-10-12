@@ -72,24 +72,42 @@ def abrir_pesquisa_visual(tipo, assunto):
 
 
 def tocar_back_in_black():
-    """Aciona a faixa no Spotify e minimiza o player para não cobrir a tela."""
-    if os.name != "nt" or not hasattr(os, "startfile"):
+    """Aciona a faixa no Spotify e tenta manter a janela do player oculta."""
+    if os.name != "nt":
         return False
     try:
-        os.startfile(URI_SPOTIFY_BACK_IN_BLACK)
+        import ctypes
+        from ctypes import wintypes
+
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        shell32.ShellExecuteW.argtypes = (
+            wintypes.HWND,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            ctypes.c_int,
+        )
+        shell32.ShellExecuteW.restype = ctypes.c_void_p
+        # SW_HIDE evita pedir ao Windows que mostre a janela do aplicativo.
+        resultado = shell32.ShellExecuteW(
+            None, "open", URI_SPOTIFY_BACK_IN_BLACK, None, None, 0
+        )
+        if not resultado or resultado <= 32:
+            return False
     except Exception:
         return False
 
     Thread(
-        target=_minimizar_janelas_spotify,
-        name="jarvis-minimizar-spotify",
+        target=_ocultar_janelas_spotify,
+        name="jarvis-ocultar-spotify",
         daemon=True,
     ).start()
     return True
 
 
-def _minimizar_janelas_spotify():
-    """Minimiza a janela do Spotify assim que o Windows ativa o aplicativo."""
+def _ocultar_janelas_spotify():
+    """Oculta a janela do Spotify para deixar visível somente o JARVIS."""
     try:
         import ctypes
         import psutil
@@ -128,7 +146,7 @@ def _minimizar_janelas_spotify():
                 except (psutil.Error, OSError):
                     return True
                 if nome == "spotify.exe":
-                    user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+                    user32.ShowWindow(hwnd, 0)  # SW_HIDE
                     encontrou = True
                 return True
 
@@ -136,6 +154,6 @@ def _minimizar_janelas_spotify():
             user32.EnumWindows(callback, 0)
             if encontrou:
                 return
-            time.sleep(0.1)
+            time.sleep(0.02)
     except Exception:
         return

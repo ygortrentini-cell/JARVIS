@@ -10,10 +10,11 @@ MODELO_WHISPER = "small"
 TEMPO_GRAVACAO = 25
 LIMIAR_VOZ = 0.0035
 PAUSA_FINAL = 1.15
-# Duas palmas: ajuste o pico para cima se ruídos ativarem o gesto por engano.
-LIMIAR_PALMA_PICO = 0.16
-LIMIAR_PALMA_CREST = 3.5
-INTERVALO_PALMAS = 1.0
+# Duas palmas: reduza o pico se o microfone tiver dificuldade para detectar o gesto;
+# aumente-o se ruídos do ambiente acionarem o gesto sem querer.
+LIMIAR_PALMA_PICO = 0.10
+LIMIAR_PALMA_CREST = 3.8
+INTERVALO_PALMAS = 1.5
 
 VELOCIDADE_VOZ = 1.03
 TONALIDADE_VOZ = 0.92

@@ -1,5 +1,5 @@
 {
-  "version": "0.5.1",
-  "mudancas": "O gesto de duas palmas aciona Back In Black no Spotify em segundo plano, minimiza o player e não fala nem exibe aviso na conversa.",
-  "aprendizados": "O gesto mantém o microfone pronto após acionar a faixa por um link direto do Spotify."
+  "version": "0.5.2",
+  "mudancas": "A detecção de duas palmas ficou mais rápida e descarta o som do gesto para não virar comando de voz. Back In Black continua tocando no Spotify oculto, sem fala nem aviso do JARVIS.",
+  "aprendizados": "A janela de escuta precisa continuar ativa entre a primeira e a segunda palma, inclusive quando o gesto acontece perto do fim de um ciclo de silêncio."
 }
