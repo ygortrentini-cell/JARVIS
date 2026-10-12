@@ -1,0 +1,45 @@
+name: Publicar versão do JARVIS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v7
+
+      - name: Montar pacote de atualização
+        shell: pwsh
+        run: |
+          $versaoTag = $env:GITHUB_REF_NAME.TrimStart('v')
+          $versaoArquivo = (Get-Content version.json -Raw | ConvertFrom-Json).version
+          if ($versaoTag -ne $versaoArquivo) {
+            throw "A tag ($versaoTag) deve corresponder à versão em version.json ($versaoArquivo)."
+          }
+
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          $arquivos = @(
+            'core', 'interface', 'modules', 'main.py', 'jarvis.py',
+            'iniciar_jarvis.bat', 'requirements.txt', 'README.md', 'version.json', 'config.example.py'
+          )
+          Compress-Archive -Path $arquivos -DestinationPath 'dist/JARVIS-update.zip' -CompressionLevel Optimal
+          $hash = (Get-FileHash 'dist/JARVIS-update.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path 'dist/JARVIS-update.zip.sha256' -Value "$hash  JARVIS-update.zip" -Encoding ascii -NoNewline
+
+      - name: Publicar Release com notas e pacote verificado
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            'dist/JARVIS-update.zip' `
+            'dist/JARVIS-update.zip.sha256' `
+            --title "JARVIS $($env:GITHUB_REF_NAME)" `
+            --generate-notes

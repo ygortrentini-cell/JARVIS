@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+*.py[cod]
+logs/
+dados/
+config.py
+.env
+.env.*
+audio.wav
+*.tmp
+.updates/
+assets/voz/*.onnx*
+tests/manual/*.wav
+docs/rascunhos/

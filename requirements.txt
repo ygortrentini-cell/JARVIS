@@ -1,0 +1,7 @@
+PySide6
+psutil
+ollama
+openai-whisper
+sounddevice
+soundfile
+piper-tts==1.8.0
