@@ -19,6 +19,7 @@ from modules.sistema import obter_resumo_sistema
 from modules.noticias import carregar_descobertas, carregar_manchetes
 from modules.aprendizado import registrar_descobertas
 from modules.atualizador import Atualizador
+from modules.midia import tocar_back_in_black
 
 from core.worker_audio import WorkerAudio
 from core.worker_ia import WorkerIA
@@ -105,6 +106,7 @@ class Assistente(QObject):
         self.worker_audio.comando.connect(
             self.receber_comando
         )
+        self.worker_audio.gesto_palmas.connect(self._ao_detectar_duas_palmas)
 
         # -------------------------
         # ASSISTENTE → IA
@@ -384,6 +386,16 @@ class Assistente(QObject):
             self.janela.adicionar_mensagem("JARVIS", f"Até logo, senhor {NOME_USUARIO}.")
             log("J.A.R.V.I.S. encerrado pelo usuário.")
             self.app.quit()
+
+    @Slot()
+    def _ao_detectar_duas_palmas(self):
+        abriu = tocar_back_in_black()
+        if abriu:
+            resposta = "Duas palmas detectadas. Abrindo Back In Black no YouTube."
+        else:
+            resposta = "Duas palmas detectadas, mas não consegui abrir o vídeo."
+        self.receber_resposta(resposta)
+        self.fala_solicitada.emit(resposta)
 
     @Slot(str)
     def receber_texto(self, texto):

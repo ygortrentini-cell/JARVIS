@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
-  "mudancas": "Adiciona o Modo de Melhoria Completa, ligado por padrão, que atualiza o código do JARVIS e sua interface pelas Releases oficiais, removendo módulos antigos que deixarem de fazer parte do pacote; preserva dados e configurações locais.",
-  "aprendizados": "O JARVIS passa a apresentar o resumo de novidades e aprendizados documentado em cada Release oficial; o programa não reescreve nem instala código por conta própria."
+  "version": "0.5.0",
+  "mudancas": "Detecta duas palmas enquanto o microfone está ativo e abre o vídeo oficial de Back In Black no YouTube; permite ajustar os limiares para diferentes microfones.",
+  "aprendizados": "O reconhecimento de palmas depende do microfone selecionado, do nível de ruído e de manter a escuta ativa."
 }

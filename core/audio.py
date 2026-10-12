@@ -1,6 +1,7 @@
 import time
 
 import numpy as np
+import config as configuracao
 
 from config import (
     AUDIO_DEVICE,
@@ -11,6 +12,12 @@ from config import (
     TEMPO_GRAVACAO,
 )
 from modules.util import corrigir_transcricao
+
+
+COMANDO_DUAS_PALMAS = "__JARVIS_DUAS_PALMAS__"
+LIMIAR_PALMA_PICO = float(getattr(configuracao, "LIMIAR_PALMA_PICO", 0.16))
+LIMIAR_PALMA_CREST = float(getattr(configuracao, "LIMIAR_PALMA_CREST", 3.5))
+INTERVALO_PALMAS = float(getattr(configuracao, "INTERVALO_PALMAS", 1.0))
 
 
 class Audio:
@@ -63,7 +70,7 @@ class Audio:
 
         print("\n🎤 Ouvindo...")
         taxa = 16000
-        duracao_bloco = 0.2
+        duracao_bloco = 0.05
         quadros_bloco = int(taxa * duracao_bloco)
         limiar_voz = LIMIAR_VOZ
         pausa_final = PAUSA_FINAL
@@ -75,6 +82,7 @@ class Audio:
         ruido_ambiente = 0.0
         blocos_calibracao = 0
         inicio_gravacao = time.monotonic()
+        primeira_palma = None
 
         # Mede o ruído do ambiente e guarda áudio anterior à fala para preservar
         # o começo de palavras, mesmo quando o volume da voz é baixo.
@@ -89,6 +97,28 @@ class Audio:
                 bloco, _ = stream.read(quadros_bloco)
                 bloco = bloco.reshape(-1).copy()
                 energia = float(np.sqrt(np.mean(bloco * bloco)))
+                pico = float(np.max(np.abs(bloco)))
+
+                if blocos_calibracao >= 6:
+                    agora = time.monotonic()
+                    limiar_pico = max(
+                        LIMIAR_PALMA_PICO,
+                        ruido_ambiente * 8,
+                        limiar_voz * 30,
+                    )
+                    limiar_energia = max(0.018, ruido_ambiente * 3, limiar_voz * 2)
+                    crista = pico / max(energia, 1e-6)
+                    impulso = (
+                        pico >= limiar_pico
+                        and energia >= limiar_energia
+                        and crista >= LIMIAR_PALMA_CREST
+                    )
+                    if impulso:
+                        if primeira_palma is None or agora - primeira_palma > INTERVALO_PALMAS:
+                            primeira_palma = agora
+                        elif agora - primeira_palma >= 0.18:
+                            print("👏👏 Duas palmas detectadas.")
+                            return COMANDO_DUAS_PALMAS
 
                 if not falando:
                     pre_audio.append(bloco)

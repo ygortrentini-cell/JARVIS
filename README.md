@@ -17,6 +17,7 @@ Em uma instalação nova, copie `config.example.py` para `config.py` e ajuste o 
 - Conversa em português por texto ou microfone.
 - Saudação falada ao iniciar com o estado atual de CPU, memória e armazenamento; o microfone só volta a escutar depois que ela termina.
 - Captura de fala adaptada ao ruído ambiente, com mais margem para pausas e pedidos longos.
+- Detecta duas palmas quando o microfone está ativo e abre o vídeo oficial de “Back In Black” no YouTube; a reprodução automática depende das configurações do navegador.
 - Nova tentativa automática do Whisper em transcrições incertas e correção contextual de erros comuns de fala.
 - Respostas com o Ollama e o modelo configurado em `config.py`.
 - Leitura com a voz neural Piper Cadu em português do Brasil, de timbre mais grave, com cadência mais medida e execução local; se o modelo não estiver disponível, tenta a Piper Faber e depois a voz masculina do Windows.

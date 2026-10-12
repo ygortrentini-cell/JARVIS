@@ -9,6 +9,7 @@ from .util import normalizar_comando
 
 _TIPOS = r"imagens?|fotos?|videos?"
 _PREPOSICAO = r"(?:de|do|da|dos|das|sobre|a respeito de)"
+URL_BACK_IN_BLACK = "https://www.youtube.com/watch?v=pAgnJDJN4VA&autoplay=1"
 
 
 def _normalizar_tipo(tipo):
@@ -64,4 +65,13 @@ def abrir_pesquisa_visual(tipo, assunto):
         return bool(webbrowser.open_new_tab(endereco))
     except Exception as erro:
         print(f"Não foi possível abrir a pesquisa visual: {erro}")
+        return False
+
+
+def tocar_back_in_black():
+    """Abre o vídeo oficial de Back In Black e solicita reprodução automática."""
+    try:
+        return bool(webbrowser.open_new_tab(URL_BACK_IN_BLACK))
+    except Exception as erro:
+        print(f"Não foi possível abrir Back In Black: {erro}")
         return False

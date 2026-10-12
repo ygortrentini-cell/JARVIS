@@ -1,11 +1,14 @@
 from PySide6.QtCore import QThread, Signal
 import time
 
+from core.audio import COMANDO_DUAS_PALMAS
+
 
 class WorkerAudio(QThread):
 
     # Envia o texto reconhecido para o restante do Jarvis
     comando = Signal(str)
+    gesto_palmas = Signal()
 
     # Informa à interface que começou a ouvir
     ouvindo = Signal()
@@ -40,7 +43,10 @@ class WorkerAudio(QThread):
                 # Se reconheceu alguma coisa
                 if texto and self.habilitado and self.ativo:
 
-                    self.comando.emit(texto)
+                    if texto == COMANDO_DUAS_PALMAS:
+                        self.gesto_palmas.emit()
+                    else:
+                        self.comando.emit(texto)
                     self.habilitado = False
 
                 # Pequena pausa para evitar loop excessivamente rápido
