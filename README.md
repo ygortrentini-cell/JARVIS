@@ -22,13 +22,14 @@ Em uma instalação nova, copie `config.example.py` para `config.py` e ajuste o 
 - Leitura com a voz neural Piper Cadu em português do Brasil, de timbre mais grave, com cadência mais medida e execução local; se o modelo não estiver disponível, tenta a Piper Faber e depois a voz masculina do Windows.
 - Comandos locais para abrir e fechar programas, pesquisar na web, consultar notícias recentes, calcular expressões e consultar recursos do computador.
 - Manchetes atuais da Agência Brasil e publicações de pesquisa e inovação da EBC/NASA carregadas em segundo plano ao iniciar e atualizadas a cada 30 minutos; novas descobertas são sinalizadas na tela e pela área de notificações do Windows.
-- Verificação de Releases do GitHub a cada seis horas. Pacotes com hash SHA-256 válido são baixados em segundo plano e aplicados ao fechar o JARVIS; ele reabre com a versão nova. A atualização preserva configuração, memória, vozes e ambiente Python.
+- Verificação de Releases do GitHub ao iniciar, a cada hora e quando você pedir “verificar atualizações”. Pacotes com hash SHA-256 válido são baixados em segundo plano e aplicados ao fechar o JARVIS; ele reabre com a versão nova.
+- Depois de atualizar, o JARVIS anuncia por voz e na tela o que mudou e o conhecimento descrito nas notas da versão. Ele também guarda localmente as descobertas recentes dos feeds de pesquisa; pergunte “o que você aprendeu?” para ouvi-las junto com o resumo da atualização.
 - Um briefing falado com as manchetes e o estado do computador nesses mesmos pedidos.
 - O briefing usa manchetes públicas e telemetria local; não consulta banco, saldo ou webcam.
 - Pesquisa visual por pedidos como “mostre imagens de Saturno” e “mostre vídeos sobre robótica”; imagens abrem no Google Imagens e vídeos no YouTube. Também aceita pedidos combinados como “me fale sobre Marte e mostre imagens”.
 - Modo de programação com busca e leitura de código dentro da pasta do projeto JARVIS.
 - Ações no computador e alterações no projeto são executadas sem caixa de confirmação quando fazem parte de um pedido claro.
-- Memórias pessoais guardadas localmente em `dados/memoria.json`; diga, por exemplo, “lembre que gosto de café” e depois pergunte “o que você lembra de mim”.
+- Memórias pessoais guardadas localmente em `dados/memoria.json`; diga, por exemplo, “lembre que gosto de café” e depois pergunte “o que você lembra de mim”. O JARVIS registra fatos pessoais quando você pede, mantém até 60 descobertas recentes dos feeds no computador e guarda o resumo de cada atualização.
 - Respostas locais reconhecem variações comuns de acentuação e pontuação, e o comando “claro” pode concluir uma oferta anterior para consultar o sistema.
 - Painel amplo inspirado na gravação: grade azul em perspectiva, núcleo holográfico animado com o estado “FALANDO”, manchete principal com imagem quando o feed fornece e três painéis menores de telemetria, notícias e descobertas; conversa em uma faixa compacta inferior, sem funções financeiras.
 
@@ -53,4 +54,4 @@ Instale os pacotes listados em `requirements.txt`. A voz Piper usa os arquivos e
 
 ## Publicar uma versão para o atualizador
 
-O workflow `.github/workflows/release.yml` cria um pacote de atualização e seu hash SHA-256 quando uma tag `v*` é enviada ao GitHub. A versão da tag deve corresponder a `version.json` (por exemplo, `v0.2.0` e `0.2.0`). O pacote contém o código do assistente, mas preserva `config.py`, `.venv`, `dados/`, `logs/` e os modelos de voz locais.
+O workflow `.github/workflows/release.yml` cria um pacote de atualização e seu hash SHA-256 quando uma tag `v*` é enviada ao GitHub. A versão da tag deve corresponder a `version.json` (por exemplo, `v0.3.0` e `0.3.0`); atualize também os campos `mudancas` e `aprendizados`, e crie `release-notes/vX.Y.Z.md` com as seções `O que mudou` e `O que aprendeu`. O pacote contém o código do assistente, mas preserva `config.py`, `.venv`, `dados/`, `logs/` e os modelos de voz locais. O JARVIS se atualiza por Releases publicadas nesse repositório; o modelo de IA não retreina nem reescreve o próprio código por conta própria.

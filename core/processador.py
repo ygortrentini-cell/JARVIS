@@ -13,6 +13,7 @@ from modules.util import corrigir_transcricao, normalizar_comando
 from modules.noticias import carregar_manchetes, formatar_manchetes
 from modules.midia import abrir_pesquisa_visual, extrair_pedido_visual
 from modules.briefing import obter_briefing
+from modules.aprendizado import responder_aprendizado
 
 
 class Processador:
@@ -23,6 +24,7 @@ class Processador:
         self._acao_pendente = None
         self.ultimas_manchetes = None
         self.atualizou_manchetes = False
+        self.verificar_atualizacao_callback = None
 
     @staticmethod
     def _acao_arquivo(comando):
@@ -71,6 +73,36 @@ class Processador:
             return ""
 
         comando_normalizado = normalizar_comando(comando)
+
+        pedidos_atualizacao = {
+            "verifique atualizacoes", "verificar atualizacoes",
+            "cheque atualizacoes", "checar atualizacoes",
+            "busque atualizacoes", "buscar atualizacoes",
+            "procure atualizacoes", "procurar atualizacoes",
+            "atualize jarvis", "atualize o jarvis", "atualiza jarvis",
+            "atualize o sistema do jarvis", "atualize se jarvis",
+            "atualizar jarvis agora", "verificar atualizacao",
+            "checar atualizacao", "buscar atualizacao", "procurar atualizacao",
+        }
+        verbo_atualizacao = any(
+            verbo in comando_normalizado.split()
+            for verbo in ("verificar", "verifique", "checar", "cheque", "buscar", "busque", "procurar", "procure")
+        )
+        menciona_atualizacao = any(
+            termo in comando_normalizado.split()
+            for termo in ("atualizacao", "atualizacoes")
+        )
+        if comando_normalizado in pedidos_atualizacao or (verbo_atualizacao and menciona_atualizacao):
+            if self.verificar_atualizacao_callback:
+                self.verificar_atualizacao_callback()
+            return self._registrar_resposta_local(
+                comando,
+                "Vou verificar se há uma versão nova. Se encontrar, aviso e preparo a atualização para o próximo encerramento.",
+            )
+
+        resposta = responder_aprendizado(comando_normalizado)
+        if resposta:
+            return self._registrar_resposta_local(comando, resposta)
 
         if self._pede_briefing(comando_normalizado):
             resposta, self.ultimas_manchetes = obter_briefing()

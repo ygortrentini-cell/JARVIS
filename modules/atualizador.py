@@ -15,6 +15,7 @@ import stat
 import subprocess
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 import zipfile
@@ -124,15 +125,47 @@ def _validar_pacote(dados, versao_release):
         return False
 
 
-def _notas_curta(texto):
+def _notas_curta(texto, limite=220):
     texto = re.sub(r"<[^>]*>", " ", str(texto or ""))
+    texto = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", texto)
     texto = re.sub(r"[`*_#]", "", texto)
-    return re.sub(r"\s+", " ", texto).strip()[:220]
+    return re.sub(r"\s+", " ", texto).strip()[:limite]
+
+
+def _resumir_notas_release(texto):
+    secoes = {"mudancas": [], "aprendizados": []}
+    secao_atual = None
+    for linha in str(texto or "").splitlines():
+        cabecalho = re.match(r"^\s{0,3}#{1,6}\s*(.+?)\s*#*\s*$", linha)
+        if cabecalho:
+            titulo = unicodedata.normalize("NFKD", cabecalho.group(1).casefold())
+            titulo = "".join(caractere for caractere in titulo if not unicodedata.combining(caractere))
+            if any(palavra in titulo for palavra in ("mudou", "mudancas", "novidades", "changes")):
+                secao_atual = "mudancas"
+            elif any(palavra in titulo for palavra in ("aprendeu", "aprendizados", "conhecimento", "learned")):
+                secao_atual = "aprendizados"
+            else:
+                secao_atual = None
+            continue
+        if secao_atual:
+            item = re.sub(r"^\s*(?:[-*+]\s+|\d+[.)]\s+)", "", linha).strip()
+            if item:
+                secoes[secao_atual].append(item)
+
+    mudancas = _notas_curta("; ".join(secoes["mudancas"]), 200)
+    aprendizados = _notas_curta("; ".join(secoes["aprendizados"]), 200)
+    if not mudancas:
+        mudancas = _notas_curta(texto, 200) or "Melhorias e correções desta versão."
+    if not aprendizados:
+        aprendizados = "Esta versão não especificou novos conhecimentos nas notas."
+    return mudancas, aprendizados
 
 
 class Atualizador:
     def __init__(self):
         self.pacote_preparado = None
+        self.mudancas_preparadas = ""
+        self.aprendizados_preparados = ""
 
     def verificar_e_preparar(self):
         atual = ler_versao_local()
@@ -148,6 +181,7 @@ class Atualizador:
             versao = tag.lstrip("vV")
             if not _versao_maior(versao, atual):
                 return {"status": "atualizado", "atual": atual}
+            mudancas, aprendizados = _resumir_notas_release(release.get("body"))
 
             ativos = {item.get("name"): item for item in release.get("assets", [])}
             pacote = ativos.get(NOME_PACOTE)
@@ -158,6 +192,8 @@ class Atualizador:
                     "atual": atual,
                     "versao": tag,
                     "notas": _notas_curta(release.get("body")),
+                    "mudancas": mudancas,
+                    "aprendizados": aprendizados,
                 }
             tamanho = int(pacote.get("size", 0) or 0)
             if tamanho < 1 or tamanho > TAMANHO_MAXIMO_PACOTE:
@@ -179,12 +215,16 @@ class Atualizador:
             arquivo = PASTA_ATUALIZACOES / f"JARVIS-update-{versao}.zip"
             arquivo.write_bytes(dados_pacote)
             self.pacote_preparado = arquivo
+            self.mudancas_preparadas = mudancas
+            self.aprendizados_preparados = aprendizados
             return {
                 "status": "pronta",
                 "atual": atual,
                 "versao": tag,
                 "arquivo": str(arquivo),
                 "notas": _notas_curta(release.get("body")),
+                "mudancas": mudancas,
+                "aprendizados": aprendizados,
             }
         except (OSError, ValueError, KeyError, TypeError, urllib.error.URLError) as erro:
             return {"status": "erro", "atual": atual, "detalhe": str(erro)[:180]}
@@ -222,6 +262,10 @@ class Atualizador:
                     str(Path(sys.executable).resolve()),
                     "--entrada",
                     str(entrada),
+                    "--mudancas",
+                    self.mudancas_preparadas,
+                    "--aprendizados",
+                    self.aprendizados_preparados,
                 ],
                 cwd=str(RAIZ),
                 stdin=subprocess.DEVNULL,
@@ -318,7 +362,28 @@ def _processo_ativo(pid):
         return False
 
 
-def _aplicar_pacote(arquivo_zip, pid, interpretador, entrada):
+def _salvar_resumo_atualizacao(versao, mudancas, aprendizados):
+    pasta_dados = RAIZ / "dados"
+    destino = pasta_dados / "ultima_atualizacao.json"
+    temporario = destino.with_suffix(".json.tmp")
+    registro = {
+        "versao": str(versao),
+        "mudancas": _notas_curta(mudancas, 200),
+        "aprendizados": _notas_curta(aprendizados, 200),
+        "instalada_em": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "anunciada": False,
+    }
+    if not registro["aprendizados"]:
+        registro["aprendizados"] = "Esta versão não especificou novos conhecimentos nas notas."
+    try:
+        pasta_dados.mkdir(parents=True, exist_ok=True)
+        temporario.write_text(json.dumps(registro, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporario.replace(destino)
+    except OSError as erro:
+        _registrar(f"Não foi possível salvar o resumo da atualização: {erro}")
+
+
+def _aplicar_pacote(arquivo_zip, pid, interpretador, entrada, mudancas="", aprendizados=""):
     arquivo = Path(arquivo_zip).resolve()
     pasta_atualizacoes = PASTA_ATUALIZACOES.resolve()
     if not arquivo.is_relative_to(pasta_atualizacoes) or not arquivo.name.startswith("JARVIS-update-"):
@@ -420,6 +485,7 @@ def _aplicar_pacote(arquivo_zip, pid, interpretador, entrada):
             for cache in (RAIZ / pasta).rglob("__pycache__"):
                 shutil.rmtree(cache, ignore_errors=True)
 
+        _salvar_resumo_atualizacao(versao, mudancas, aprendizados)
         _registrar(f"Atualização {versao} aplicada. Reiniciando o JARVIS.")
         interpretador_reinicio = Path(interpretador)
         pythonw = interpretador_reinicio.with_name("pythonw.exe")
@@ -451,6 +517,8 @@ def _cli():
     parser.add_argument("--aguardar-pid", required=True, type=int)
     parser.add_argument("--python", required=True)
     parser.add_argument("--entrada", required=True)
+    parser.add_argument("--mudancas", default="")
+    parser.add_argument("--aprendizados", default="")
     argumentos = parser.parse_args()
     raise SystemExit(
         _aplicar_pacote(
@@ -458,6 +526,8 @@ def _cli():
             argumentos.aguardar_pid,
             argumentos.python,
             argumentos.entrada,
+            argumentos.mudancas,
+            argumentos.aprendizados,
         )
     )
 

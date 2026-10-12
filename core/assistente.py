@@ -1,6 +1,8 @@
+import json
 import sys
 import os
 from datetime import datetime
+from pathlib import Path
 from threading import Thread
 
 from PySide6.QtCore import QObject, QSettings, QThread, QTimer, Signal, Slot
@@ -15,6 +17,7 @@ from core.logger import log
 from core.confirmacao import Confirmacao
 from modules.sistema import obter_resumo_sistema
 from modules.noticias import carregar_descobertas, carregar_manchetes
+from modules.aprendizado import registrar_descobertas
 from modules.atualizador import Atualizador
 
 from core.worker_audio import WorkerAudio
@@ -45,13 +48,15 @@ class Assistente(QObject):
 
         self.app = QApplication.instance() or QApplication(sys.argv)
         self.app.setApplicationName("J.A.R.V.I.S.")
+        self.aviso_atualizacao = self._ler_atualizacao_pendente()
+        self._anunciar_atualizacao_na_abertura = self.aviso_atualizacao is not None
 
         self.janela = JanelaJarvis()
         self.confirmacao = Confirmacao()
         self.atualizador = Atualizador()
         self.janela.showMaximized()
         self.app.processEvents()
-        self.mensagem_abertura = self._mensagem_abertura()
+        self.mensagem_abertura = self._mensagem_abertura(self.aviso_atualizacao)
 
         # -------------------------
         # MÓDULOS
@@ -62,6 +67,7 @@ class Assistente(QObject):
         self.audio = Audio()
         self.ia = Inteligencia(self.confirmacao)
         self.processador = Processador(self.ia)
+        self.processador.verificar_atualizacao_callback = self._solicitar_verificacao_atualizacao
         self.voz = Voz()
 
         if not self.audio.disponivel:
@@ -185,7 +191,7 @@ class Assistente(QObject):
         self.timer_manchetes.start()
         self._solicitar_verificacao_atualizacao()
         self.timer_atualizacao = QTimer(self)
-        self.timer_atualizacao.setInterval(6 * 60 * 60 * 1000)
+        self.timer_atualizacao.setInterval(60 * 60 * 1000)
         self.timer_atualizacao.timeout.connect(self._solicitar_verificacao_atualizacao)
         self.timer_atualizacao.start()
         log("J.A.R.V.I.S. iniciado.")
@@ -197,7 +203,42 @@ class Assistente(QObject):
         print("✓ Voz pronta.")
 
     @staticmethod
-    def _mensagem_abertura():
+    def _ler_atualizacao_pendente():
+        raiz = Path(__file__).resolve().parents[1]
+        arquivo = raiz / "dados" / "ultima_atualizacao.json"
+        try:
+            dados = json.loads(arquivo.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            dados = None
+        if isinstance(dados, dict) and not dados.get("anunciada"):
+            return dados
+
+        # Compatibilidade com a v0.2.0, cujo aplicador não guardava as notas
+        # junto do pacote: a versão nova leva o resumo em version.json.
+        try:
+            versao_info = json.loads((raiz / "version.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return None
+        versao = str(versao_info.get("version", ""))
+        tag = f"v{versao}"
+        preferencias = QSettings("JARVIS", NOME_USUARIO or "JARVIS")
+        ultima_notificada = str(preferencias.value("atualizacoes/ultima_versao_notificada", ""))
+        ultima_anunciada = str(preferencias.value("atualizacoes/ultima_versao_anunciada", ""))
+        if ultima_notificada.lstrip("vV") != versao or ultima_anunciada == tag:
+            return None
+        mudancas = str(versao_info.get("mudancas", "Melhorias e correções."))
+        aprendizados = str(
+            versao_info.get("aprendizados", "Nenhum aprendizado novo foi especificado.")
+        )
+        return {
+            "versao": tag,
+            "mudancas": mudancas,
+            "aprendizados": aprendizados,
+            "anunciada": False,
+        }
+
+    @staticmethod
+    def _mensagem_abertura(aviso_atualizacao=None):
         hora = datetime.now().hour
         if 5 <= hora < 12:
             saudacao = "Bom dia"
@@ -206,14 +247,53 @@ class Assistente(QObject):
         else:
             saudacao = "Boa noite"
         estado = obter_resumo_sistema()
-        return (
+        mensagem = (
             f"{saudacao}, senhor {NOME_USUARIO}. {estado} "
             "Estou à disposição por voz ou texto."
         )
+        if aviso_atualizacao:
+            versao = aviso_atualizacao.get("versao", "nova")
+            mudancas = aviso_atualizacao.get("mudancas", "Melhorias e correções.")
+            aprendizados = aviso_atualizacao.get(
+                "aprendizados", "Nenhum aprendizado novo foi especificado."
+            )
+            mensagem += (
+                f" Também atualizei para a versão {versao}. O que mudou: {mudancas}. "
+                f"O conhecimento registrado nesta versão: {aprendizados}."
+            )
+        return mensagem
+
+    def _marcar_atualizacao_anunciada(self):
+        aviso = self.aviso_atualizacao
+        if not aviso:
+            return
+        arquivo = Path(__file__).resolve().parents[1] / "dados" / "ultima_atualizacao.json"
+        temporario = arquivo.with_suffix(".json.tmp")
+        try:
+            try:
+                dados = json.loads(arquivo.read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                dados = {}
+            if not isinstance(dados, dict) or str(dados.get("versao", "")) != str(aviso.get("versao", "")):
+                dados = {
+                    "versao": aviso.get("versao", ""),
+                    "mudancas": aviso.get("mudancas", ""),
+                    "aprendizados": aviso.get("aprendizados", ""),
+                }
+            dados["anunciada"] = True
+            arquivo.parent.mkdir(parents=True, exist_ok=True)
+            temporario.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporario.replace(arquivo)
+            preferencias = QSettings("JARVIS", NOME_USUARIO or "JARVIS")
+            preferencias.setValue("atualizacoes/ultima_versao_anunciada", str(aviso.get("versao", "")))
+            self._anunciar_atualizacao_na_abertura = False
+        except (OSError, ValueError, TypeError) as erro:
+            log(f"Não foi possível registrar o anúncio da atualização: {erro}")
 
     def _carregar_manchetes_iniciais(self):
         manchetes = carregar_manchetes(limite=3)
         descobertas = carregar_descobertas(limite=5)
+        registrar_descobertas(descobertas)
         novas = []
 
         if descobertas is not None:
@@ -342,6 +422,9 @@ class Assistente(QObject):
 
     @Slot()
     def fala_terminou(self):
+
+        if self._anunciar_atualizacao_na_abertura:
+            self._marcar_atualizacao_anunciada()
 
         print("\n🎤 Pronto para ouvir novamente.")
         self.worker_audio.definir_escuta(self.janela.microfone_ativo)

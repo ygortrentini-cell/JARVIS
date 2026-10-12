@@ -23,6 +23,10 @@ jobs:
           if ($versaoTag -ne $versaoArquivo) {
             throw "A tag ($versaoTag) deve corresponder à versão em version.json ($versaoArquivo)."
           }
+          $arquivoNotas = "release-notes/$($env:GITHUB_REF_NAME).md"
+          if (!(Test-Path $arquivoNotas)) {
+            throw "Adicione $arquivoNotas com as seções 'O que mudou' e 'O que aprendeu'."
+          }
 
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           $arquivos = @(
@@ -38,8 +42,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $arquivoNotas = "release-notes/$($env:GITHUB_REF_NAME).md"
           gh release create $env:GITHUB_REF_NAME `
             'dist/JARVIS-update.zip' `
             'dist/JARVIS-update.zip.sha256' `
             --title "JARVIS $($env:GITHUB_REF_NAME)" `
-            --generate-notes
+            --notes-file $arquivoNotas

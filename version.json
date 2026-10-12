@@ -1,3 +1,5 @@
 {
-  "version": "0.2.0"
+  "version": "0.3.0",
+  "mudancas": "Verifica atualizações ao iniciar, a cada hora ou por pedido; anuncia por voz o resumo após instalar e permite consultar o que mudou.",
+  "aprendizados": "Guarda localmente até 60 descobertas recentes dos feeds de pesquisa e resume as duas últimas quando você pergunta o que aprendeu."
 }
