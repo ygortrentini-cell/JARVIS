@@ -117,7 +117,6 @@ class Audio:
                         if primeira_palma is None or agora - primeira_palma > INTERVALO_PALMAS:
                             primeira_palma = agora
                         elif agora - primeira_palma >= 0.18:
-                            print("👏👏 Duas palmas detectadas.")
                             return COMANDO_DUAS_PALMAS
 
                 if not falando:

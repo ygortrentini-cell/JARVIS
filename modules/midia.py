@@ -1,7 +1,10 @@
 """Pesquisa imagens e vídeos solicitados e abre os resultados no navegador."""
 
+import os
 import re
+import time
 import webbrowser
+from threading import Thread
 from urllib.parse import quote_plus
 
 from .util import normalizar_comando
@@ -9,7 +12,7 @@ from .util import normalizar_comando
 
 _TIPOS = r"imagens?|fotos?|videos?"
 _PREPOSICAO = r"(?:de|do|da|dos|das|sobre|a respeito de)"
-URL_BACK_IN_BLACK = "https://www.youtube.com/watch?v=pAgnJDJN4VA&autoplay=1"
+URI_SPOTIFY_BACK_IN_BLACK = "spotify:track:08mG3Y1vljYA6bvDt4Wqkj"
 
 
 def _normalizar_tipo(tipo):
@@ -69,9 +72,70 @@ def abrir_pesquisa_visual(tipo, assunto):
 
 
 def tocar_back_in_black():
-    """Abre o vídeo oficial de Back In Black e solicita reprodução automática."""
-    try:
-        return bool(webbrowser.open_new_tab(URL_BACK_IN_BLACK))
-    except Exception as erro:
-        print(f"Não foi possível abrir Back In Black: {erro}")
+    """Aciona a faixa no Spotify e minimiza o player para não cobrir a tela."""
+    if os.name != "nt" or not hasattr(os, "startfile"):
         return False
+    try:
+        os.startfile(URI_SPOTIFY_BACK_IN_BLACK)
+    except Exception:
+        return False
+
+    Thread(
+        target=_minimizar_janelas_spotify,
+        name="jarvis-minimizar-spotify",
+        daemon=True,
+    ).start()
+    return True
+
+
+def _minimizar_janelas_spotify():
+    """Minimiza a janela do Spotify assim que o Windows ativa o aplicativo."""
+    try:
+        import ctypes
+        import psutil
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+        user32.IsWindowVisible.restype = wintypes.BOOL
+        user32.GetWindowThreadProcessId.argtypes = (
+            wintypes.HWND,
+            ctypes.POINTER(wintypes.DWORD),
+        )
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        user32.ShowWindow.argtypes = (wintypes.HWND, ctypes.c_int)
+        user32.ShowWindow.restype = wintypes.BOOL
+        callback_type = ctypes.WINFUNCTYPE(
+            wintypes.BOOL,
+            wintypes.HWND,
+            wintypes.LPARAM,
+        )
+        user32.EnumWindows.argtypes = (callback_type, wintypes.LPARAM)
+        user32.EnumWindows.restype = wintypes.BOOL
+
+        limite = time.monotonic() + 10
+        while time.monotonic() < limite:
+            encontrou = False
+
+            def minimizar(hwnd, _parametro):
+                nonlocal encontrou
+                if not user32.IsWindowVisible(hwnd):
+                    return True
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                try:
+                    nome = psutil.Process(pid.value).name().casefold()
+                except (psutil.Error, OSError):
+                    return True
+                if nome == "spotify.exe":
+                    user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+                    encontrou = True
+                return True
+
+            callback = callback_type(minimizar)
+            user32.EnumWindows(callback, 0)
+            if encontrou:
+                return
+            time.sleep(0.1)
+    except Exception:
+        return

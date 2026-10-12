@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
-  "mudancas": "Detecta duas palmas enquanto o microfone está ativo e abre o vídeo oficial de Back In Black no YouTube; permite ajustar os limiares para diferentes microfones.",
-  "aprendizados": "O reconhecimento de palmas depende do microfone selecionado, do nível de ruído e de manter a escuta ativa."
+  "version": "0.5.1",
+  "mudancas": "O gesto de duas palmas aciona Back In Black no Spotify em segundo plano, minimiza o player e não fala nem exibe aviso na conversa.",
+  "aprendizados": "O gesto mantém o microfone pronto após acionar a faixa por um link direto do Spotify."
 }

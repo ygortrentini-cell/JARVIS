@@ -389,13 +389,15 @@ class Assistente(QObject):
 
     @Slot()
     def _ao_detectar_duas_palmas(self):
-        abriu = tocar_back_in_black()
-        if abriu:
-            resposta = "Duas palmas detectadas. Abrindo Back In Black no YouTube."
+        if tocar_back_in_black():
+            log("Gesto de duas palmas: reprodução de Back In Black solicitada ao Spotify.")
         else:
-            resposta = "Duas palmas detectadas, mas não consegui abrir o vídeo."
-        self.receber_resposta(resposta)
-        self.fala_solicitada.emit(resposta)
+            log("Gesto de duas palmas detectado, mas o Spotify não foi iniciado.")
+        QTimer.singleShot(1800, self._retomar_escuta_apos_gesto)
+
+    @Slot()
+    def _retomar_escuta_apos_gesto(self):
+        self.worker_audio.definir_escuta(self.janela.microfone_ativo)
 
     @Slot(str)
     def receber_texto(self, texto):
